@@ -2,6 +2,8 @@
 # This pipeline needs the following tasks from Tekton Hub
 #   - git-clone
 #   - flake8
+#   - nose
+#   - buildah
 #
 ---
 apiVersion: tekton.dev/v1beta1
@@ -13,8 +15,14 @@ spec:
     - name: pipeline-workspace
   params:
     - name: repo-url
+      description: "The URL of the repository to clone"
     - name: branch
+      description: "The branch of the repository to use"
       default: main
+    - name: build-image
+      description: "The image to build and push"
+      type: string
+      default: "image-registry.openshift-image-registry.svc:5000/sn-labs-hrutujamirga/accounts:1"
   tasks:
     - name: init
       workspaces:
@@ -51,21 +59,17 @@ spec:
       runAfter:
         - clone
 
-    - name: tests
+    - name: test
       workspaces:
         - name: source
           workspace: pipeline-workspace
       taskRef:
         name: nose
       params:
-      - name: database_uri
-        value: "sqlite:///test.db"
       - name: args
         value: "-v --with-spec --spec-color"
       runAfter:
         - clone
-
-    - name: build-image
 
     - name: build
       workspaces:
@@ -78,5 +82,5 @@ spec:
       - name: IMAGE
         value: "$(params.build-image)"
       runAfter:
-        - tests
         - lint
+        - test
